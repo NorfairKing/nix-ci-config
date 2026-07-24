@@ -1,0 +1,20 @@
+broken exit=0
+  eval-error
+config-import exit=0
+  not-self-contained systems.nix
+config-nested exit=0
+  not-self-contained ci
+config-wins-over-output exit=0
+  success {"enable":true,"systems":["x86_64-linux"]}
+config exit=0
+  success {"enable":true,"systems":["x86_64-linux"]}
+flake-output-input-pattern exit=0
+  success {"enable":true,"systems":["x86_64-linux"]}
+flake-output-uses-self exit=0
+  success {"enable":true}
+flake-output exit=0
+  success {"enable":true,"systems":["aarch64-linux"]}
+no-config exit=0
+  success null
+no-flake exit=0
+  missing-flake

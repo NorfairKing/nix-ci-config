@@ -1,0 +1,102 @@
+github config exit=0
+  success {"enable":true,"systems":["x86_64-linux"]}
+  asked flake.nix
+  asked nix-ci.nix
+github config-import exit=0
+  not-self-contained systems.nix
+  asked flake.nix
+  asked nix-ci.nix
+github config-nested exit=0
+  not-self-contained ci
+  asked flake.nix
+  asked nix-ci.nix
+github flake-output exit=0
+  success {"enable":true,"systems":["aarch64-linux"]}
+  asked flake.nix
+  asked nix-ci.nix
+github flake-output-input-pattern exit=0
+  success {"enable":true,"systems":["x86_64-linux"]}
+  asked flake.nix
+  asked nix-ci.nix
+github no-config exit=0
+  success null
+  asked flake.nix
+  asked nix-ci.nix
+github flake-output-uses-self exit=0
+  fetch-error
+  asked flake.nix
+  asked nix-ci.nix
+github no-flake exit=0
+  fetch-error
+  asked flake.nix
+github unreadable exit=0
+  fetch-error
+  asked flake.nix
+gitlab config exit=0
+  success {"enable":true,"systems":["x86_64-linux"]}
+  asked flake.nix
+  asked nix-ci.nix
+gitlab config-import exit=0
+  not-self-contained systems.nix
+  asked flake.nix
+  asked nix-ci.nix
+gitlab config-nested exit=0
+  not-self-contained ci
+  asked flake.nix
+  asked nix-ci.nix
+gitlab flake-output exit=0
+  success {"enable":true,"systems":["aarch64-linux"]}
+  asked flake.nix
+  asked nix-ci.nix
+gitlab flake-output-input-pattern exit=0
+  success {"enable":true,"systems":["x86_64-linux"]}
+  asked flake.nix
+  asked nix-ci.nix
+gitlab no-config exit=0
+  success null
+  asked flake.nix
+  asked nix-ci.nix
+gitlab flake-output-uses-self exit=0
+  fetch-error
+  asked flake.nix
+  asked nix-ci.nix
+gitlab no-flake exit=0
+  fetch-error
+  asked flake.nix
+gitlab unreadable exit=0
+  fetch-error
+  asked flake.nix
+forgejo config exit=0
+  success {"enable":true,"systems":["x86_64-linux"]}
+  asked flake.nix
+  asked nix-ci.nix
+forgejo config-import exit=0
+  not-self-contained systems.nix
+  asked flake.nix
+  asked nix-ci.nix
+forgejo config-nested exit=0
+  not-self-contained ci
+  asked flake.nix
+  asked nix-ci.nix
+forgejo flake-output exit=0
+  success {"enable":true,"systems":["aarch64-linux"]}
+  asked flake.nix
+  asked nix-ci.nix
+forgejo flake-output-input-pattern exit=0
+  success {"enable":true,"systems":["x86_64-linux"]}
+  asked flake.nix
+  asked nix-ci.nix
+forgejo no-config exit=0
+  success null
+  asked flake.nix
+  asked nix-ci.nix
+forgejo flake-output-uses-self exit=0
+  fetch-error
+  asked flake.nix
+  asked nix-ci.nix
+forgejo no-flake exit=0
+  fetch-error
+  asked flake.nix
+forgejo unreadable exit=0
+  fetch-error
+  asked flake.nix
