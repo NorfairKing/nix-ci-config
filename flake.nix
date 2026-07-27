@@ -12,32 +12,44 @@
 
   outputs = { self, nixpkgs }:
     let
-      system = "x86_64-linux";
+      systems = [ "x86_64-linux" "aarch64-linux" ];
+      forEachSystem = nixpkgs.lib.genAttrs systems;
       # The tool is proprietary (all rights reserved), so it is marked unfree.
-      pkgs = import nixpkgs {
-        inherit system;
+      pkgsFor = sys: import nixpkgs {
+        system = sys;
         config.allowUnfree = true;
       };
+
+      # The dev shell is only built where it is developed, so it stays a
+      # single-system output while the tool itself is built for both.
+      devSystem = "x86_64-linux";
     in
     {
-      overlays.default = _final: _prev: {
-        nix-ci-config = pkgs.callPackage ./package.nix { };
+      # Built with the consumer's package set, so the tool links the same nix
+      # as whatever else that package set builds.
+      overlays.default = final: _prev: {
+        nix-ci-config = final.callPackage ./package.nix { };
       };
 
-      packages.${system} = {
-        nix-ci-config = pkgs.callPackage ./package.nix { };
-        default = self.packages.${system}.nix-ci-config;
-      };
+      packages = forEachSystem (sys:
+        let pkgs = pkgsFor sys; in
+        {
+          nix-ci-config = pkgs.callPackage ./package.nix { };
+          default = self.packages.${sys}.nix-ci-config;
+        });
 
-      checks.${system} = {
-        # Compiles the tool and runs its unit tests and both integration
-        # suites, which the package does as part of its own check phase.
-        nix-ci-config = self.packages.${system}.nix-ci-config;
-      };
+      checks = forEachSystem (sys:
+        {
+          # Compiles the tool and runs its unit tests and both integration
+          # suites, which the package does as part of its own check phase.
+          nix-ci-config = self.packages.${sys}.nix-ci-config;
+        });
 
-      devShells.${system}.default = pkgs.mkShell {
-        inputsFrom = [ self.packages.${system}.nix-ci-config ];
-        packages = [ pkgs.clang-tools ];
-      };
+      devShells.${devSystem}.default =
+        let pkgs = pkgsFor devSystem; in
+        pkgs.mkShell {
+          inputsFrom = [ self.packages.${devSystem}.nix-ci-config ];
+          packages = [ pkgs.clang-tools ];
+        };
     };
 }
