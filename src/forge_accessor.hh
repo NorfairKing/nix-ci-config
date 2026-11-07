@@ -40,9 +40,8 @@ struct FetchFailed : std::exception {
 
 // Thrown when a configuration reads a file that is not the configuration.
 //
-// This is the repository's problem rather than the fetch's, and reading the
-// whole repository would not make it go away: a configuration is one file, and
-// one that is not is rejected wherever its sources came from.
+// Reading the whole repository does not permit imports between configuration
+// files: each root or fragment is evaluated with its own access policy.
 struct NotSelfContained : std::exception {
     std::string path;
     std::string message;
@@ -60,7 +59,7 @@ struct NotSelfContained : std::exception {
 // exception raised underneath it, so what was recorded decides rather than
 // what came out.
 // [check:tag SelfContainedConfiguration] The documentation tells users a
-// configuration file has to be self-contained. Keep it true.
+// configuration files cannot import each other. Keep it true.
 struct AccessPolicy {
     std::set<std::string> allowed;
     std::optional<std::string> violation;
@@ -73,13 +72,10 @@ struct AccessPolicy {
 };
 
 // A read-only view of the files a NixCI configuration is made of, read one per
-// request through the forge's contents API.
+// request through the forge's contents API, with batched GitHub fragment reads.
 //
-// It serves what the policy allows, which is the configuration file and the
-// flake this asserts the presence of, and nothing else. Serving a fixed set
-// rather than whatever is asked for is what keeps this small enough to be sure
-// of: no directories to walk, no symlinks to follow, no listings, and a
-// request count that is known before anything is fetched.
+// The loader may list nix-ci.d and admit its regular .nix files. Evaluation
+// gets a further restricted accessor for each individual file.
 struct ForgeAccessor : nix::SourceAccessor {
     // What the forge said about each path. Held behind a shared pointer so that
     // a second accessor reading the same repository -- the flake output is read
@@ -130,10 +126,11 @@ private:
     size_t requestCount_ = 0;
 
     const ContentsResponse & fetch(const nix::CanonPath & path);
+    void fetchGitHubFragments(const std::vector<std::string> & files);
     [[noreturn]] void fallback(const std::string & reason);
 };
 
-// Another accessor, holding a configuration to the same one file.
+// Holds evaluation to the same allowed files regardless of source transport.
 //
 // The rule is about what a configuration may be made of, not about how its
 // sources happened to arrive, so it applies to a repository Nix fetched

@@ -14,6 +14,24 @@ flake-output-uses-self exit=0
   success {"enable":true}
 flake-output exit=0
   success {"enable":true,"systems":["aarch64-linux"]}
+fragments-duplicate-dependency exit=0
+  eval-error
+fragments-duplicate exit=0
+  eval-error
+fragments-import exit=0
+  not-self-contained nix-ci.d/two.nix
+fragments-policy exit=0
+  eval-error
+fragments-transform-duplicate exit=0
+  eval-error
+fragments-transform-import exit=0
+  not-self-contained policy.nix
+fragments-transform-invalid exit=0
+  eval-error
+fragments-transform exit=0
+  success {"dependencies":{"test.packages.x86_64-linux.publish":["checks.x86_64-linux.test"]},"doNotBuild":["packages.x86_64-linux.shadow"],"enable":true,"test":{"publisher":{"branches":"main","package":"packages.x86_64-linux.publish"},"qualifying":{"branches":":any","enable":true,"package":"packages.x86_64-linux.qualifying"},"reenabled":{"branches":"main","enable":true,"package":"packages.x86_64-linux.reenabled"},"shadow":{"branches":"main","enable":false,"package":"packages.x86_64-linux.shadow"}}}
+fragments exit=0
+  success {"dependencies":{"test.packages.x86_64-linux.one":["checks.x86_64-linux.one"]},"enable":true,"systems":["x86_64-linux"],"test":{"one":{"branches":"main","package":"packages.x86_64-linux.one"},"two":{"branches":":any","in-repo":true,"package":"packages.x86_64-linux.two"}}}
 no-config exit=0
   success null
 no-flake exit=0

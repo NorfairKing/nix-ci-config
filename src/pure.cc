@@ -239,7 +239,6 @@ std::optional<std::string> tokenFor(
 }
 
 ContentsResponse parseContentsResponse(Forge forge, const std::string & body) {
-    (void) forge;
     nlohmann::json parsed;
     try {
         parsed = nlohmann::json::parse(body);
@@ -247,10 +246,33 @@ ContentsResponse parseContentsResponse(Forge forge, const std::string & body) {
         return ContentsUnservable{std::string("contents response was not JSON: ") + e.what()};
     }
 
-    // A directory comes back as an array of its entries, which is not
-    // something a configuration file is.
     if (parsed.is_array()) {
-        return ContentsUnservable{"not a regular file: directory"};
+        // A full first page may omit entries; let the repository fetch handle it.
+        if (parsed.size() >= (forge == Forge::GitLab ? 100 : 1000)) {
+            return ContentsUnservable{"directory listing may be truncated"};
+        }
+        ContentsDirectory directory;
+        for (const auto & entry : parsed) {
+            if (!entry.is_object() || !entry.contains("name") || !entry["name"].is_string()
+                || !entry.contains("type") || !entry["type"].is_string()) {
+                return ContentsUnservable{"incomplete directory entry"};
+            }
+            auto name = entry["name"].get<std::string>();
+            if (name.empty() || name == "." || name == ".." || name.find('/') != std::string::npos) {
+                return ContentsUnservable{"invalid directory entry"};
+            }
+            if (name.ends_with(".nix")) {
+                if (entry["type"] != (forge == Forge::GitLab ? "blob" : "file")) {
+                    return ContentsUnservable{"configuration fragment is not a regular file"};
+                }
+                if (forge == Forge::GitLab
+                    && (!entry.contains("mode") || (entry["mode"] != "100644" && entry["mode"] != "100755"))) {
+                    return ContentsUnservable{"configuration fragment has no regular file mode"};
+                }
+                directory.files.push_back(name);
+            }
+        }
+        return directory;
     }
     if (!parsed.is_object()) {
         return ContentsUnservable{"contents response was neither an object nor an array"};

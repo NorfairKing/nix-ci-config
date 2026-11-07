@@ -32,8 +32,8 @@ deleting the flake cannot pass for a suite with nothing to do:
 }
 ```
 
-A configuration that is not a single self-contained file is `not-self-contained`,
-naming the `path` it read that is not the configuration:
+A configuration file that reads another file is `not-self-contained`,
+naming the forbidden `path`:
 
 ```json
 {
@@ -62,5 +62,39 @@ Sources that could not be read are `fetch-error`, the one result worth retrying:
 ```
 
 It reads `nix-ci.nix` if the repository has one, the flake's `nix-ci` output
-otherwise. A configuration has to be a single self-contained file; one that
-imports another, reads a directory or follows a symlink is `not-self-contained`.
+otherwise. With `nix-ci.nix`, it also discovers regular `nix-ci.d/*.nix`
+fragments at the same revision, in filename order. Fragments may define only
+`test` and `dependencies` attribute sets. Duplicate keys fail evaluation and
+name both defining files; entries are never silently overwritten.
+
+For policy shared by every service, the root may instead be a function of
+the merged fragment attribute set. It must return the complete configuration:
+
+```nix
+fragments:
+fragments // {
+  enable = true;
+  test = builtins.mapAttrs (_: job: job // { enable = false; }) fragments.test;
+}
+```
+
+Duplicate fragment keys are rejected before calling the function. The root
+function has the same file-access restrictions as an attribute-set root.
+Older readers reject function roots, rather than running jobs without policy.
+Deploy a function-capable reader before switching the root to this form.
+
+On GitHub, fragment contents are read through GraphQL in batches of at most
+64 files after directory discovery. A 52-fragment configuration uses three
+REST requests and one GraphQL request, rather than 55 REST requests.
+GitLab and Forgejo retain per-file reads. Incomplete or failed batches fall
+back to the repository fetcher, never to per-fragment REST requests.
+
+Files cannot import each other. The root may inspect `nix-ci.d`; fragments
+cannot read other files or directories. Discovery is not recursive and
+symlink fragments are rejected. An absent directory preserves single-file
+behavior. Flake-output fallback does not discover fragments.
+
+Start a split configuration with `assert builtins.pathExists ./nix-ci.d;`
+so older readers reject it rather than silently omit its jobs. Deploy the
+fragment-capable reader before migrating repositories; restore the
+single-file configuration before rolling back the reader.

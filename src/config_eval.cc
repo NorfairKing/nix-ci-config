@@ -12,6 +12,7 @@
 #include <nix/expr/eval-gc.hh>
 #include <nix/expr/eval-settings.hh>
 #include <nix/expr/eval.hh>
+#include <nix/expr/json-to-value.hh>
 #include <nix/expr/value-to-json.hh>
 #include <nix/expr/value.hh>
 #include <nix/fetchers/attrs.hh>
@@ -184,12 +185,113 @@ std::string renderValueAsJSON(nix::EvalState & state, nix::Value & value) {
 // configuration needs `builtins.currentSystem` or the like asks for @--impure@,
 // which is what `nix eval --file` does.
 // [check:tag ConfigFileImpure]
-std::string evaluateConfigFile(const nix::ref<nix::Store> & store, const nix::SourcePath & path, bool impure) {
+std::pair<nlohmann::json, bool> evaluateConfigFile(
+    const nix::ref<nix::Store> & store,
+    const nix::SourcePath & path,
+    bool impure,
+    const std::optional<nlohmann::json> & fragments) {
     nix::evalSettings.pureEval = !impure;
     auto state = makeEvalState(store);
     nix::Value value;
     state->evalFile(path, value);
-    return renderValueAsJSON(*state, value);
+    state->forceValue(value, nix::noPos);
+    bool isFunction = value.type() == nix::nFunction;
+    if (isFunction && fragments) {
+        nix::Value argument, result;
+        nix::parseJSON(*state, fragments->dump(), argument);
+        state->callFunction(value, argument, result, nix::noPos);
+        return {nlohmann::json::parse(renderValueAsJSON(*state, result)), true};
+    }
+    return {nlohmann::json::parse(renderValueAsJSON(*state, value)), false};
+}
+
+std::string evaluateConfigFragments(
+    const nix::ref<nix::Store> & store,
+    const nix::ref<nix::SourceAccessor> & accessor,
+    const std::shared_ptr<AccessPolicy> & policy,
+    bool impure) {
+    auto evaluate = [&](const std::string & name, const std::optional<nlohmann::json> & fragments = std::nullopt) {
+        auto filePolicy = std::make_shared<AccessPolicy>(std::set<std::string>{name});
+        if (name == configFileName) {
+            filePolicy->allowed.insert("nix-ci.d");
+        }
+        auto restricted = nix::make_ref<RestrictedAccessor>(accessor, filePolicy);
+        try {
+            auto path = repoPath(restricted, name.c_str());
+            if (path.lstat().type != nix::SourceAccessor::tRegular) {
+                throw nix::Error("configuration file '%s' must be a regular file", name);
+            }
+            auto value = evaluateConfigFile(store, path, impure, fragments);
+            if (filePolicy->violation) {
+                policy->violation = filePolicy->violation;
+                throw NotSelfContained(*filePolicy->violation);
+            }
+            return value;
+        } catch (...) {
+            if (filePolicy->violation) {
+                policy->violation = filePolicy->violation;
+            }
+            throw;
+        }
+    };
+
+    policy->allowed.insert("nix-ci.d");
+    auto config = nlohmann::json::object();
+    auto directory = repoPath(accessor, "nix-ci.d");
+    auto stat = directory.maybeLstat();
+    if (stat && stat->type != nix::SourceAccessor::tDirectory) {
+        throw nix::Error("nix-ci.d must be a directory");
+    }
+    std::map<std::string, std::map<std::string, std::string>> owners;
+    auto merge = [&](const nlohmann::json & fragment, const std::string & file) {
+        for (const auto & field : {"test", "dependencies"}) {
+            if (!fragment.contains(field)) {
+                continue;
+            }
+            const auto & entries = fragment[field];
+            if (!entries.is_object()) {
+                throw nix::Error("%s: '%s' must be an attribute set", file, field);
+            }
+            if (!config.contains(field)) {
+                config[field] = nlohmann::json::object();
+            }
+            for (const auto & [key, value] : entries.items()) {
+                auto [owner, inserted] = owners[field].emplace(key, file);
+                if (!inserted) {
+                    throw nix::Error("duplicate '%s.%s' in %s and %s", field, key, owner->second, file);
+                }
+                config[field][key] = value;
+            }
+        }
+    };
+    if (stat) {
+        for (const auto & [name, type] : directory.readDirectory()) {
+            if (!name.ends_with(".nix")) {
+                continue;
+            }
+            auto file = "nix-ci.d/" + name;
+            policy->allowed.insert(file);
+            auto fragment = evaluate(file).first;
+            if (!fragment.is_object()) {
+                throw nix::Error("%s must evaluate to an attribute set", file);
+            }
+            for (const auto & [field, entries] : fragment.items()) {
+                if (field != "test" && field != "dependencies") {
+                    throw nix::Error("%s: only 'test' and 'dependencies' are allowed, not '%s'", file, field);
+                }
+            }
+            merge(fragment, file);
+        }
+    }
+    auto [root, transformed] = evaluate(configFileName, config);
+    if (!root.is_object()) {
+        throw nix::Error("nix-ci.nix must evaluate to an attribute set");
+    }
+    if (!transformed) {
+        merge(root, configFileName);
+        root.update(config);
+    }
+    return root.dump();
 }
 
 // Evaluate the flake's configuration output, for a repository that has no
@@ -391,7 +493,7 @@ std::optional<Result> attempt(
 
         auto configPath = repoPath(accessor, configFileName);
         if (configPath.pathExists()) {
-            success = Result{SuccessResult{evaluateConfigFile(store, configPath, impure)}};
+            success = Result{SuccessResult{evaluateConfigFragments(store, accessor, policy, impure)}};
         } else {
             // No configuration file: the configuration is the flake's `nix-ci`
             // output. Where the sources are behind a forge API, that output is
@@ -526,9 +628,7 @@ int run(const Args & args, std::ostream & out, std::ostream & err) {
 
         auto [fetched, _lockedInput] = flakeRef.input.getAccessor(nix::fetchSettings, *store);
         auto policy = configurationFiles();
-        // Held to the same one file as the fast path, so that what a
-        // configuration may be made of does not depend on where it was read
-        // from.
+        // Apply the same per-file restrictions as the forge path.
         nix::ref<nix::SourceAccessor> accessor = nix::make_ref<RestrictedAccessor>(fetched, policy);
         if (auto result = attempt(store, flakeRef, accessor, policy, nullptr, {}, args.impure, nullptr)) {
             emit(*result);

@@ -15,6 +15,7 @@ the fast path is the number of requests it makes, and nothing else observes it.
 import base64
 import json
 import os
+import re
 import sys
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -27,6 +28,7 @@ REQUEST_LOG = sys.argv[3]
 # answered from it, or the test would pass for a tool that ignored the
 # revision entirely.
 REV = sys.argv[4]
+GRAPHQL_MODE = sys.argv[5] if len(sys.argv) > 5 else ""
 
 _lock = threading.Lock()
 
@@ -54,10 +56,10 @@ def contents_response(relative, with_type):
             # GitLab's files endpoint answers only for files, and 404s for a
             # directory exactly as it does for a path that is not there.
             return None
-        # The other two report a directory as an array of its entries. Only
-        # the shape matters here: a listing is something the tool declines to
-        # use.
-        return [{"name": name} for name in sorted(os.listdir(resolved))]
+        return [
+            {"name": name, "type": "dir" if os.path.isdir(os.path.join(resolved, name)) else "file"}
+            for name in sorted(os.listdir(resolved))
+        ]
     with open(resolved, "rb") as handle:
         encoded = base64.b64encode(handle.read()).decode()
     body = {"encoding": "base64", "content": encoded}
@@ -73,7 +75,7 @@ def tree_response(relative):
     if resolved is None or not os.path.isdir(resolved):
         return []
     return [
-        {"name": name, "path": os.path.join(relative, name), "type": "blob"}
+        {"name": name, "path": os.path.join(relative, name), "type": "blob", "mode": "100644"}
         for name in sorted(os.listdir(resolved))
     ]
 
@@ -81,6 +83,42 @@ def tree_response(relative):
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *args):
         pass
+
+    def do_POST(self):
+        if self.path != "/api/graphql":
+            self.send_error(404)
+            return
+        body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+        expressions = re.findall(r'(f\d+):object\(expression:("(?:\\.|[^"\\])*")\)', body["query"])
+        record("graphql:" + str(len(expressions)))
+        if GRAPHQL_MODE == "http":
+            self.send_error(403)
+            return
+        repository = {}
+        for alias, encoded in expressions:
+            revision, relative = json.loads(encoded).split(":", 1)
+            resolved = repo_path(relative)
+            if revision != REV or resolved is None or not os.path.isfile(resolved):
+                repository[alias] = None
+                continue
+            with open(resolved, "rb") as handle:
+                contents = handle.read()
+            repository[alias] = {
+                "__typename": "Blob", "text": contents.decode(),
+                "byteSize": len(contents), "isBinary": False, "isTruncated": False,
+            }
+        if GRAPHQL_MODE == "missing":
+            repository.pop(next(iter(repository)))
+        elif GRAPHQL_MODE in ("binary", "truncated", "size"):
+            blob = next(iter(repository.values()))
+            field = {"binary": "isBinary", "truncated": "isTruncated", "size": "byteSize"}[GRAPHQL_MODE]
+            blob[field] = True if field != "byteSize" else blob[field] + 1
+        response = {"data": {"repository": repository}}
+        if GRAPHQL_MODE == "errors":
+            response["errors"] = [{"message": "partial response"}]
+        if GRAPHQL_MODE == "null":
+            response["data"]["repository"] = None
+        self.respond(response)
 
     def do_GET(self):
         url = urlparse(self.path)
