@@ -63,7 +63,10 @@ for forge in github gitlab forgejo; do
   # answer, so here it surfaces as an error rather than the configuration a real
   # forge would return; what the case pins is that the fast path did not answer
   # such an output from flake.nix, having asked only for the two files first.
-  for fixture in config config-import config-nested flake-output flake-output-input-pattern no-config flake-output-uses-self no-flake unreadable; do
+  for fixture in config config-import config-nested flake-output flake-output-input-pattern no-config flake-output-uses-self no-flake unreadable fragments fragments-duplicate fragments-duplicate-dependency fragments-policy fragments-import fragments-batch-boundary fragments-batch-errors fragments-batch-missing fragments-batch-binary fragments-batch-truncated fragments-batch-size fragments-batch-null fragments-batch-http; do
+    if [[ "$fixture" == fragments-batch-* && "$forge" != github ]]; then
+      continue
+    fi
     log="$work/requests-$forge-$fixture.txt"
     : > "$log"
 
@@ -75,12 +78,25 @@ for forge in github gitlab forgejo; do
     # should have been retried, and tells the user to write a flake they have.
     asked="$rev"
     served="$fixtures/$fixture"
+    graphql_mode=""
+    if [[ "$fixture" == fragments-batch-* ]]; then
+      served="$fixtures/fragments"
+      graphql_mode="${fixture#fragments-batch-}"
+    fi
+    if [ "$fixture" = fragments-batch-boundary ]; then
+      served="$work/boundary"
+      mkdir -p "$served/nix-ci.d"
+      cp "$fixtures/config/"*.nix "$served/"
+      for i in $(seq 1 65); do
+        printf '{ test = {}; }\n' > "$served/nix-ci.d/$i.nix"
+      done
+    fi
     if [ "$fixture" = unreadable ]; then
       served="$fixtures/config"
       asked=2222222222222222222222222222222222222222
     fi
 
-    python3 "$here/server.py" "$served" 0 "$log" "$rev" > "$work/port.txt" &
+    python3 "$here/server.py" "$served" 0 "$log" "$rev" "$graphql_mode" > "$work/port.txt" &
     server_pid=$!
     # The server prints the port it got once it is listening.
     for _ in $(seq 1 100); do

@@ -99,7 +99,11 @@ struct ContentsUnservable {
 
 struct ContentsAbsent {};
 
-using ContentsResponse = std::variant<ContentsFile, ContentsUnservable, ContentsAbsent>;
+struct ContentsDirectory {
+    std::vector<std::string> files;
+};
+
+using ContentsResponse = std::variant<ContentsFile, ContentsDirectory, ContentsUnservable, ContentsAbsent>;
 
 // Interpret a 200 response body from a contents endpoint.
 ContentsResponse parseContentsResponse(Forge forge, const std::string & body);

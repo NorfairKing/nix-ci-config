@@ -2,14 +2,17 @@ github config exit=0
   success {"enable":true,"systems":["x86_64-linux"]}
   asked flake.nix
   asked nix-ci.nix
+  asked nix-ci.d
 github config-import exit=0
   not-self-contained systems.nix
   asked flake.nix
   asked nix-ci.nix
+  asked nix-ci.d
 github config-nested exit=0
   not-self-contained ci
   asked flake.nix
   asked nix-ci.nix
+  asked nix-ci.d
 github flake-output exit=0
   success {"enable":true,"systems":["aarch64-linux"]}
   asked flake.nix
@@ -32,18 +35,100 @@ github no-flake exit=0
 github unreadable exit=0
   fetch-error
   asked flake.nix
+github fragments exit=0
+  success {"dependencies":{"test.packages.x86_64-linux.one":["checks.x86_64-linux.one"]},"enable":true,"systems":["x86_64-linux"],"test":{"one":{"branches":"main","package":"packages.x86_64-linux.one"},"two":{"branches":":any","in-repo":true,"package":"packages.x86_64-linux.two"}}}
+  asked flake.nix
+  asked nix-ci.nix
+  asked nix-ci.d
+  asked graphql:2
+github fragments-duplicate exit=0
+  eval-error
+  asked flake.nix
+  asked nix-ci.nix
+  asked nix-ci.d
+  asked graphql:1
+github fragments-duplicate-dependency exit=0
+  eval-error
+  asked flake.nix
+  asked nix-ci.nix
+  asked nix-ci.d
+  asked graphql:2
+github fragments-policy exit=0
+  eval-error
+  asked flake.nix
+  asked nix-ci.nix
+  asked nix-ci.d
+  asked graphql:1
+github fragments-import exit=0
+  not-self-contained nix-ci.d/two.nix
+  asked flake.nix
+  asked nix-ci.nix
+  asked nix-ci.d
+  asked graphql:2
+github fragments-batch-boundary exit=0
+  success {"enable":true,"systems":["x86_64-linux"],"test":{}}
+  asked flake.nix
+  asked nix-ci.nix
+  asked nix-ci.d
+  asked graphql:64
+  asked graphql:1
+github fragments-batch-errors exit=0
+  fetch-error
+  asked flake.nix
+  asked nix-ci.nix
+  asked nix-ci.d
+  asked graphql:2
+github fragments-batch-missing exit=0
+  fetch-error
+  asked flake.nix
+  asked nix-ci.nix
+  asked nix-ci.d
+  asked graphql:2
+github fragments-batch-binary exit=0
+  fetch-error
+  asked flake.nix
+  asked nix-ci.nix
+  asked nix-ci.d
+  asked graphql:2
+github fragments-batch-truncated exit=0
+  fetch-error
+  asked flake.nix
+  asked nix-ci.nix
+  asked nix-ci.d
+  asked graphql:2
+github fragments-batch-size exit=0
+  fetch-error
+  asked flake.nix
+  asked nix-ci.nix
+  asked nix-ci.d
+  asked graphql:2
+github fragments-batch-null exit=0
+  fetch-error
+  asked flake.nix
+  asked nix-ci.nix
+  asked nix-ci.d
+  asked graphql:2
+github fragments-batch-http exit=0
+  fetch-error
+  asked flake.nix
+  asked nix-ci.nix
+  asked nix-ci.d
+  asked graphql:2
 gitlab config exit=0
   success {"enable":true,"systems":["x86_64-linux"]}
   asked flake.nix
   asked nix-ci.nix
+  asked tree:nix-ci.d
 gitlab config-import exit=0
   not-self-contained systems.nix
   asked flake.nix
   asked nix-ci.nix
+  asked tree:nix-ci.d
 gitlab config-nested exit=0
   not-self-contained ci
   asked flake.nix
   asked nix-ci.nix
+  asked tree:nix-ci.d
 gitlab flake-output exit=0
   success {"enable":true,"systems":["aarch64-linux"]}
   asked flake.nix
@@ -66,18 +151,53 @@ gitlab no-flake exit=0
 gitlab unreadable exit=0
   fetch-error
   asked flake.nix
+gitlab fragments exit=0
+  success {"dependencies":{"test.packages.x86_64-linux.one":["checks.x86_64-linux.one"]},"enable":true,"systems":["x86_64-linux"],"test":{"one":{"branches":"main","package":"packages.x86_64-linux.one"},"two":{"branches":":any","in-repo":true,"package":"packages.x86_64-linux.two"}}}
+  asked flake.nix
+  asked nix-ci.nix
+  asked tree:nix-ci.d
+  asked nix-ci.d/one.nix
+  asked nix-ci.d/two.nix
+gitlab fragments-duplicate exit=0
+  eval-error
+  asked flake.nix
+  asked nix-ci.nix
+  asked tree:nix-ci.d
+  asked nix-ci.d/one.nix
+gitlab fragments-duplicate-dependency exit=0
+  eval-error
+  asked flake.nix
+  asked nix-ci.nix
+  asked tree:nix-ci.d
+  asked nix-ci.d/one.nix
+  asked nix-ci.d/two.nix
+gitlab fragments-policy exit=0
+  eval-error
+  asked flake.nix
+  asked nix-ci.nix
+  asked tree:nix-ci.d
+  asked nix-ci.d/one.nix
+gitlab fragments-import exit=0
+  not-self-contained nix-ci.d/two.nix
+  asked flake.nix
+  asked nix-ci.nix
+  asked tree:nix-ci.d
+  asked nix-ci.d/one.nix
 forgejo config exit=0
   success {"enable":true,"systems":["x86_64-linux"]}
   asked flake.nix
   asked nix-ci.nix
+  asked nix-ci.d
 forgejo config-import exit=0
   not-self-contained systems.nix
   asked flake.nix
   asked nix-ci.nix
+  asked nix-ci.d
 forgejo config-nested exit=0
   not-self-contained ci
   asked flake.nix
   asked nix-ci.nix
+  asked nix-ci.d
 forgejo flake-output exit=0
   success {"enable":true,"systems":["aarch64-linux"]}
   asked flake.nix
@@ -100,3 +220,35 @@ forgejo no-flake exit=0
 forgejo unreadable exit=0
   fetch-error
   asked flake.nix
+forgejo fragments exit=0
+  success {"dependencies":{"test.packages.x86_64-linux.one":["checks.x86_64-linux.one"]},"enable":true,"systems":["x86_64-linux"],"test":{"one":{"branches":"main","package":"packages.x86_64-linux.one"},"two":{"branches":":any","in-repo":true,"package":"packages.x86_64-linux.two"}}}
+  asked flake.nix
+  asked nix-ci.nix
+  asked nix-ci.d
+  asked nix-ci.d/one.nix
+  asked nix-ci.d/two.nix
+forgejo fragments-duplicate exit=0
+  eval-error
+  asked flake.nix
+  asked nix-ci.nix
+  asked nix-ci.d
+  asked nix-ci.d/one.nix
+forgejo fragments-duplicate-dependency exit=0
+  eval-error
+  asked flake.nix
+  asked nix-ci.nix
+  asked nix-ci.d
+  asked nix-ci.d/one.nix
+  asked nix-ci.d/two.nix
+forgejo fragments-policy exit=0
+  eval-error
+  asked flake.nix
+  asked nix-ci.nix
+  asked nix-ci.d
+  asked nix-ci.d/one.nix
+forgejo fragments-import exit=0
+  not-self-contained nix-ci.d/two.nix
+  asked flake.nix
+  asked nix-ci.nix
+  asked nix-ci.d
+  asked nix-ci.d/one.nix
