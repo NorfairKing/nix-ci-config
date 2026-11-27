@@ -42,6 +42,6 @@ stdenv.mkDerivation {
     description = "Read a repository's NixCI configuration from a flake reference";
     mainProgram = "nix-ci-config";
     license = lib.licenses.unfree;
-    platforms = lib.platforms.linux;
+    platforms = lib.platforms.linux ++ [ "aarch64-darwin" ];
   };
 }

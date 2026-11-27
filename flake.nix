@@ -12,7 +12,7 @@
 
   outputs = { self, nixpkgs }:
     let
-      systems = [ "x86_64-linux" "aarch64-linux" ];
+      systems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" ];
       forEachSystem = nixpkgs.lib.genAttrs systems;
       # The tool is proprietary (all rights reserved), so it is marked unfree.
       pkgsFor = sys: import nixpkgs {
@@ -20,8 +20,7 @@
         config.allowUnfree = true;
       };
 
-      # The dev shell is only built where it is developed, so it stays a
-      # single-system output while the tool itself is built for both.
+      # The dev shell stays a single-system output where it is developed.
       devSystem = "x86_64-linux";
     in
     {
